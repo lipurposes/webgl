@@ -7,8 +7,17 @@
         {
             "type": "pwa-chrome",
             "request": "launch",
-            "name": "Open first_test.html",
-            "file": "/Users/lipurpose/Documents/webgl/first_test.html"
-        }
+            "name":"webgl launch",
+            "url":"http://localhost:8080/first_test.html",
+            "webRoot":"${workspaceFolder}"
+        },
+        {
+            "type": "pwa-chrome",
+            "request": "attach",
+            "name":"webgl-attach",
+            "url":"http://localhost:8080",
+            "port":8080,
+            "webRoot":"${workspaceFolder}"
+        },
     ]
 }

@@ -9,20 +9,22 @@
 <body>
     <canvas id="c"></canvas>
 </body>
-<script  id="vertex-shader-2d" type="notjs">
+<script  id="vertex-shader-2d" type="x-shader/x-vertex">
 
   // an attribute will receive data from a buffer
-  attribute vec4 a_position;
+  attribute vec2 a_position;
+
+  uniform vec2 u_resolution;
 
   // all shaders have a main function
   void main() {
-
+    vec2 clipSpace = a_position / (u_resolution / 2.0);
     // gl_Position is a special variable a vertex shader
     // is responsible for setting
-    gl_Position = a_position;
+    gl_Position = vec4(clipSpace, 0, 1);
   }
 </script>
-<script  id="fragment-shader-2d" type="notjs">
+<script  id="fragment-shader-2d" type="x-shader/x-fragment">
 
   // fragment shaders don't have a default precision so we need
   // to pick one. mediump is a good default
