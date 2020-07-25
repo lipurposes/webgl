@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Four Study</title>
+    <link type="text/css" href="resources/common.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="description">
+    <canvas id="c"></canvas>
+    <div id="uiContainer">
+    </div>
+  </div>
+</body>
+<script  id="vertex-shader-2d" type="x-shader/x-vertex">
+
+  // an attribute will receive data from a buffer
+  attribute vec2 a_position;
+  attribute vec2 a_texCoord;
+  uniform mat3 u_matrix;
+
+  varying vec2 v_texCoord;
+
+  // all shaders have a main function
+  void main() {
+    gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0.0, 1.0);
+    v_texCoord = a_texCoord;
+  }
+</script>
+<script  id="fragment-shader-2d" type="x-shader/x-fragment">
+
+  // fragment shaders don't have a default precision so we need
+  // to pick one. mediump is a good default
+  precision mediump float;
+  uniform vec2 u_textureSize;
+  uniform float u_kernelWeight;
+  uniform int u_isLuminance;
+  uniform float u_kernel[9];
+  uniform sampler2D u_image;
+  
+  varying vec2 v_texCoord;
+
+  void main() {
+    vec2 onePixel = vec2(1.0, 1.0) / u_textureSize;
+    vec4 colorSum =
+        texture2D(u_image, v_texCoord + onePixel * vec2(-1, -1)) * u_kernel[0] +
+        texture2D(u_image, v_texCoord + onePixel * vec2( 0, -1)) * u_kernel[1] +
+        texture2D(u_image, v_texCoord + onePixel * vec2( 1, -1)) * u_kernel[2] +
+        texture2D(u_image, v_texCoord + onePixel * vec2(-1,  0)) * u_kernel[3] +
+        texture2D(u_image, v_texCoord + onePixel * vec2( 0,  0)) * u_kernel[4] +
+        texture2D(u_image, v_texCoord + onePixel * vec2( 1,  0)) * u_kernel[5] +
+        texture2D(u_image, v_texCoord + onePixel * vec2(-1,  1)) * u_kernel[6] +
+        texture2D(u_image, v_texCoord + onePixel * vec2( 0,  1)) * u_kernel[7] +
+        texture2D(u_image, v_texCoord + onePixel * vec2( 1,  1)) * u_kernel[8] ;
+    
+    vec4 color = colorSum / u_kernelWeight;
+    if(u_isLuminance == 1){
+        float luminance = 0.299*color.r+0.587*color.g+0.114*color.b;
+        gl_FragColor = vec4(luminance, luminance, luminance, color.a);
+    }else{
+        gl_FragColor = color;
+    }
+    
+  }
+</script>
+<script src="resources/webgl-utils.js"></script>
+<script src="resources/webgl-2d-math.js"></script>
+<script src="resources/webgl-lessons-ui.js"></script>
+<script src="resources/third_test.js"></script>
+</html>
