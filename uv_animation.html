@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Four Study</title>
+    <link type="text/css" href="resources/common.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="description">
+    <canvas id="c"></canvas>
+    <div id="uiContainer">
+    </div>
+  </div>
+</body>
+<script  id="vertex-shader-2d" type="x-shader/x-vertex">
+
+  // an attribute will receive data from a buffer
+  attribute vec2 a_position;
+  attribute vec2 a_texCoord;
+  uniform mat3 u_matrix;
+
+  varying vec2 v_texCoord;
+
+  // all shaders have a main function
+  void main() {
+    gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0.0, 1.0);
+    v_texCoord = a_texCoord;
+  }
+</script>
+<script  id="fragment-shader-2d" type="x-shader/x-fragment">
+
+  // fragment shaders don't have a default precision so we need
+  // to pick one. mediump is a good default
+  precision mediump float;
+  uniform float u_texCoordYAdd;
+  uniform sampler2D u_image;
+  
+  varying vec2 v_texCoord;
+
+  void main() {
+    gl_FragColor = vec4(texture2D(u_image, vec2(v_texCoord.x, v_texCoord.y + u_texCoordYAdd)));
+  }
+</script>
+<script src="resources/webgl-utils.js"></script>
+<script src="resources/webgl-2d-math.js"></script>
+<script src="resources/webgl-lessons-ui.js"></script>
+<script src="resources/uv_animation.js"></script>
+</html>
