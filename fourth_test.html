@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Four Study</title>
+    <link type="text/css" href="resources/common.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="description">
+    <canvas id="c"></canvas>
+    <div id="uiContainer">
+      <div id="ui">
+        <div id="fudgeFactor"></div>
+        <div id="x"></div>
+        <div id="y"></div>
+        <div id="z"></div>
+        <div id="angleX"></div>
+        <div id="angleY"></div>
+        <div id="angleZ"></div>
+        <div id="scaleX"></div>
+        <div id="scaleY"></div>
+        <div id="scaleZ"></div>
+      </div>
+    </div>
+  </div>
+</body>
+<script  id="vertex-shader-2d" type="x-shader/x-vertex">
+
+  // an attribute will receive data from a buffer
+  attribute vec4 a_position;
+  attribute vec2 a_texCoord;
+  uniform mat4 u_matrix;
+
+  varying vec2 v_texCoord;
+
+  // all shaders have a main function
+  void main() {
+    gl_Position = u_matrix * a_position;
+    v_texCoord = a_texCoord;
+  }
+</script>
+<script  id="fragment-shader-2d" type="x-shader/x-fragment">
+
+  // fragment shaders don't have a default precision so we need
+  // to pick one. mediump is a good default
+  precision mediump float;
+  varying vec2 v_texCoord;
+  uniform sampler2D u_image;
+
+  void main() {
+    gl_FragColor = texture2D(u_image, v_texCoord);
+  }
+</script>
+<script src="resources/webgl-utils.js"></script>
+<script src="resources/m4.js"></script>
+<script src="resources/webgl-lessons-ui.js"></script>
+<script src="resources/fourth_test.js"></script>
+</html>
