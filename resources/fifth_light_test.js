@@ -18,11 +18,20 @@ return d * Math.PI / 180;
 
 let matrixLocation;
 let gl;
+let moduleMatrixLocation;
+let moduleInvTMatrixLocation;
+let lightPosLocation;
+let lightColorLocation;
+let amibientColorLocation;
 
 let translation = [0, 0, -2];
 let rotation = [degToRad(0), degToRad(0), degToRad(0)];
 let scale = [1, 1, 1];
 let fieldOfViewRadians = degToRad(60);
+
+let lightPos = [-2, 2, 2];
+let lightColor = [1, 0.5, 0.5];
+let amibientColor = [0.1, 0.1, 0.1];
 
 function updatePosition(index) {
     return function(event, ui) {
@@ -65,14 +74,24 @@ function render(image) {
 
     // look up where the vertex data needs to go.
     let positionLocation = gl.getAttribLocation(program, "a_position");
+    let normalLocation = gl.getAttribLocation(program, "a_normal");
     let texCoordLocation = gl.getAttribLocation(program, "a_texCoord");
     matrixLocation = gl.getUniformLocation(program, "u_matrix");
+    moduleMatrixLocation = gl.getUniformLocation(program, "u_ModuleMatrix");
+    moduleInvTMatrixLocation = gl.getUniformLocation(program, "u_moduleInvTraMatrix");
+    lightPosLocation = gl.getUniformLocation(program, "u_lightPos");
+    lightColorLocation = gl.getUniformLocation(program, "u_lightColor");
+    amibientColorLocation = gl.getUniformLocation(program, "u_amibient");
 
     gl.useProgram(program);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
 
     let posBuff = setBuffData();
-    bindAttribLocation(posBuff, positionLocation, texCoordLocation);
+    bindAttribLocation(posBuff, positionLocation, normalLocation,texCoordLocation);
+
+    gl.uniform3fv(lightPosLocation, lightPos);
+    gl.uniform3fv(lightColorLocation, lightColor);
+    gl.uniform3fv(amibientColorLocation, amibientColor);
 
     let elementData = setElementsData();
 
@@ -82,7 +101,7 @@ function render(image) {
     webglLessonsUI.setupSlider("#fudgeFactor", {value: radToDeg(fieldOfViewRadians), slide: updateField, max: 180, step: 0.01, precision: 2 });
     webglLessonsUI.setupSlider("#x", {value: translation[0], slide: updatePosition(0), max: 10, min: -10, step: 0.01, precision: 2 });
     webglLessonsUI.setupSlider("#y", {value: translation[1], slide: updatePosition(1), max: 10, min: -10, step: 0.01, precision: 2});
-    webglLessonsUI.setupSlider("#z", {value: translation[2], slide: updatePosition(2), max: gl.canvas.height, min: -gl.canvas.height, step: 0.01, precision: 2});
+    webglLessonsUI.setupSlider("#z", {value: translation[2], slide: updatePosition(2), max: 0, min: -20, step: 0.01, precision: 2});
     webglLessonsUI.setupSlider("#angleX", {value: radToDeg(rotation[0]), slide: updateRotation(0), max: 360, min: -360});
     webglLessonsUI.setupSlider("#angleY", {value: radToDeg(rotation[1]), slide: updateRotation(1), max: 360, min: -360});
     webglLessonsUI.setupSlider("#angleZ", {value: radToDeg(rotation[2]), slide: updateRotation(2), max: 360, min: -360});
@@ -108,40 +127,40 @@ function setBuffData() {
 
     let positions = [
         //前面
-        0, 0, 1, 0, 0,
-        0, 1, 1, 0, 1,
-        1, 0, 1, 1, 0,
-        1, 1, 1, 1, 1,
+        0, 0, 1, 0, 0, 1, 0, 0,
+        0, 1, 1, 0, 0, 1, 0, 1,
+        1, 0, 1, 0, 0, 1, 1, 0,
+        1, 1, 1, 0, 0, 1, 1, 1,
         
         //后面
-        0, 0, 0, 1, 0,
-        0, 1, 0, 1, 1,
-        1, 0, 0, 0, 0,
-        1, 1, 0, 0, 1,
+        0, 0, 0, 0, 0, -1, 1, 0,
+        0, 1, 0, 0, 0, -1, 1, 1,
+        1, 0, 0, 0, 0, -1, 0, 0,
+        1, 1, 0, 0, 0, -1, 0, 1,
 
         //上面
-        0, 1, 1, 0, 0,
-        1, 1, 1, 1, 0,
-        0, 1, 0, 1, 0,
-        1, 1, 0, 1, 1,
+        0, 1, 1, 0, 1, 0, 0, 0,
+        1, 1, 1, 0, 1, 0, 1, 0,
+        0, 1, 0, 0, 1, 0, 1, 0,
+        1, 1, 0, 0, 1, 0, 1, 1,
 
         //下面
-        0, 0, 1, 1, 0,
-        1, 0, 1, 0, 0,
-        0, 0, 0, 1, 1,
-        1, 0, 0, 0, 1,
+        0, 0, 1, 0, -1, 0, 1, 0,
+        1, 0, 1, 0, -1, 0, 0, 0,
+        0, 0, 0, 0, -1, 0, 1, 1,
+        1, 0, 0, 0, -1, 0, 0, 1,
 
         //左面
-        0, 0, 0, 0, 0,
-        0, 0, 1, 1, 0,
-        0, 1, 0, 0, 1,
-        0, 1, 1, 1, 1,
+        0, 0, 0, -1, 0, 0, 0, 0,
+        0, 0, 1, -1, 0, 0, 1, 0,
+        0, 1, 0, -1, 0, 0, 0, 1,
+        0, 1, 1, -1, 0, 0, 1, 1,
 
         //右面
-        1, 0, 1, 0, 0,
-        1, 0, 0, 1, 0,
-        1, 1, 0, 1, 1,
-        1, 1, 1, 0, 1,
+        1, 0, 1, 1, 0, 0, 0, 0,
+        1, 0, 0, 1, 0, 0, 1, 0,
+        1, 1, 0, 1, 0, 0, 1, 1,
+        1, 1, 1, 1, 0, 0, 0, 1,
     ];
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
     return positionBuffer;
@@ -169,19 +188,24 @@ function setElementsData() {
     return elementBuffer;
 }
 
-function bindAttribLocation(buff, attrLocation, texLocation) {
+function bindAttribLocation(buff, attrLocation, normalLocation,texLocation) {
     gl.bindBuffer(gl.ARRAY_BUFFER, buff);
     gl.enableVertexAttribArray(attrLocation);
     let size = 3;          
     let type = gl.FLOAT;   
     let normalize = false; 
-    let stride = 4 * 5;      
+    let stride = 4 * 8;      
     let offset = 0;        
     gl.vertexAttribPointer(attrLocation, size, type, normalize, stride, offset);
 
+    gl.enableVertexAttribArray(normalLocation);
+    size = 3;          
+    offset = 3 * 4;        
+    gl.vertexAttribPointer(normalLocation, size, type, normalize, stride, offset);
+
     gl.enableVertexAttribArray(texLocation);
     size = 2;
-    offset = 3 * 4;
+    offset = 6 * 4;
     gl.vertexAttribPointer(texLocation, size, type, normalize, stride, offset);
 }
 
@@ -199,7 +223,7 @@ function createAndSetupTexture() {
 }
 
 function draw(dt) {
-    gl.clearColor(1, 1, 1, 1);
+    gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     
     let aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
@@ -209,15 +233,24 @@ function draw(dt) {
     let lookAtMatrix = m4.lookAt([0, 0, 0], [0, 0, -1], [0, 1, 0]);
     lookAtMatrix = m4.inverse(lookAtMatrix);
     matrix = m4.multiply(matrix, lookAtMatrix);
-    matrix = m4.translate(matrix, translation[0], translation[1], translation[2]);
-    matrix = m4.xRotate(matrix, rotation[0]);
-    matrix = m4.yRotate(matrix, rotation[1]);
-    matrix = m4.zRotate(matrix, rotation[2]);
-    matrix = m4.scale(matrix, scale[0], scale[1], scale[2]);
-    matrix = m4.translate(matrix, -0.5, -0.5, -0.5);
-    console.log(matrix)
 
+    let moduleMatrix = m4.identity()
+    moduleMatrix = m4.translate(moduleMatrix, translation[0], translation[1], translation[2]);
+    moduleMatrix = m4.xRotate(moduleMatrix, rotation[0]);
+    moduleMatrix = m4.yRotate(moduleMatrix, rotation[1]);
+    moduleMatrix = m4.zRotate(moduleMatrix, rotation[2]);
+    moduleMatrix = m4.scale(moduleMatrix, scale[0], scale[1], scale[2]);
+    moduleMatrix = m4.translate(moduleMatrix, -0.5, -0.5, -0.5);
+
+    gl.uniformMatrix4fv(moduleMatrixLocation, false, moduleMatrix);
+    let moduleInvT = m4.copy(moduleMatrix);
+    moduleInvT = m4.inverse(moduleInvT);
+    moduleInvT = m4.transpose(moduleInvT);
+    gl.uniformMatrix4fv(moduleInvTMatrixLocation, false, moduleInvT);
+
+    matrix = m4.multiply(matrix, moduleMatrix);
     gl.uniformMatrix4fv(matrixLocation, false, matrix);
+    console.log(matrix);
 
     // draw
     let primitiveType = gl.TRIANGLES;
