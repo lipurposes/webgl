@@ -1,11 +1,25 @@
 "use strict";
 
 function main() {
+    let isLoaded1 = false;
+    let isLoaded2 = false;
     let image = new Image();
+    let image1 = new Image();
     image.src = "resources/container.jpg";  // MUST BE SAME DOMAIN!!!
     image.onload = function() {
-        render(image);
+        isLoaded1 = true;
+        if (isLoaded1 && isLoaded2) {
+            render(image, image1);
+        }
     };
+    
+    image1.src = "resources/floor.jpg";
+    image1.onload = function() {
+        isLoaded2 = true;
+        if (isLoaded1 && isLoaded2) {
+            render(image, image1);
+        }
+    }
 }
 
 function radToDeg(r) {
@@ -16,8 +30,12 @@ function degToRad(d) {
 return d * Math.PI / 180;
 }
 
-let matrixLocation;
 let gl;
+let matrixLocation;
+
+let positionLocation;
+let normalLocation;
+let texCoordLocation;
 let moduleMatrixLocation;
 let moduleInvTMatrixLocation;
 let lightPosLocation;
@@ -26,24 +44,37 @@ let amibientColorLocation;
 let shiniFactorLocation;
 let shininessLocation;
 let lightMatrixLocation;
+let lightAngleNearLocation;
+let lightAngleFarLocation;
+let reverseLightDirLocation;
 
-let translation = [0, 0, -2];
+
+let translation = [0, 0, 0];
 let rotation = [degToRad(0), degToRad(0), degToRad(0)];
 let scale = [1, 1, 1];
 let fieldOfViewRadians = degToRad(60);
 
 let lightPos = [-2, 0, 0];
-let lightColor = [1, 1, 1];
-let amibientColor = [0.1, 0.1, 0.1];
+let lightColor = [0, 1, 0];
+let amibientColor = [0.2, 0.2, 0.2];
 let shiniFactor = 0.5;
 let shininess = 32;
+let lightDirection = [0, 0, -1];
+let lightAngleNear = 0.9;
+let lightAngleFar = 0.7;
+let viewPos = [0, 0, 5];
+
+let boxBuff;
+let floorBuff;
+let boxTexture;
+let floorTexture;
 
 let program
 let programLight
 
-function updatePosition(index) {
+function updateViewPosition(index) {
     return function(event, ui) {
-        translation[index] = ui.value;
+        viewPos[index] = ui.value;
         draw();
     };
 }
@@ -58,11 +89,19 @@ function updateShiniFactor(event, ui) {
     draw();
 }
 
-function updateRotation(index) {
+function updateLightAngleN(event, ui) {
+    lightAngleNear = ui.value;
+    draw();
+}
+function updateLightAngleF(event, ui) {
+    lightAngleFar = ui.value;
+    draw();
+}
+
+
+function updateLightDir(index) {
     return function(event, ui) {
-        var angleInDegrees = ui.value;
-        var angleInRadians = angleInDegrees * Math.PI / 180;
-        rotation[index] = angleInRadians;
+        lightDirection[index] = ui.value;
         draw();
     };
 }
@@ -79,7 +118,7 @@ function updateField(event, ui) {
     draw();
   }
 
-function render(image) {
+function render(image, image1) {
     // Get A WebGL context
     let canvas = document.querySelector("#c");
     gl = canvas.getContext("webgl");
@@ -92,9 +131,9 @@ function render(image) {
     programLight = webglUtils.createProgramFromScripts(gl, ["vertex-shader-2d-light", "fragment-shader-2d-light"])
 
     // look up where the vertex data needs to go.
-    let positionLocation = gl.getAttribLocation(program, "a_position");
-    let normalLocation = gl.getAttribLocation(program, "a_normal");
-    let texCoordLocation = gl.getAttribLocation(program, "a_texCoord");
+    positionLocation = gl.getAttribLocation(program, "a_position");
+    normalLocation = gl.getAttribLocation(program, "a_normal");
+    texCoordLocation = gl.getAttribLocation(program, "a_texCoord");
     matrixLocation = gl.getUniformLocation(program, "u_matrix");
     moduleMatrixLocation = gl.getUniformLocation(program, "u_ModuleMatrix");
     moduleInvTMatrixLocation = gl.getUniformLocation(program, "u_moduleInvTraMatrix");
@@ -104,6 +143,9 @@ function render(image) {
     let viewPosLocation = gl.getUniformLocation(program, "u_viewPos");
     shiniFactorLocation = gl.getUniformLocation(program, "u_shiniFactor");
     shininessLocation = gl.getUniformLocation(program, "u_shininess");
+    lightAngleNearLocation = gl.getUniformLocation(program, "u_lightAngleNear");
+    lightAngleFarLocation = gl.getUniformLocation(program, "u_lightAngleFar");
+    reverseLightDirLocation = gl.getUniformLocation(program, "u_reverseLightDir");
 
     let lightPositionLocation = gl.getAttribLocation(programLight, "a_position");
     let lightNormalLocation = gl.getAttribLocation(programLight, "a_normal");
@@ -113,9 +155,8 @@ function render(image) {
     gl.useProgram(program);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
 
-    let posBuff = setBuffData();
-    bindAttribLocation(posBuff, positionLocation, normalLocation, texCoordLocation);
-
+    boxBuff = setBuffData();
+    floorBuff = setFloorData();
     
     gl.uniform3fv(lightColorLocation, lightColor);
     gl.uniform3fv(amibientColorLocation, amibientColor);
@@ -123,21 +164,25 @@ function render(image) {
 
     let elementData = setElementsData();
 
-    createAndSetupTexture();
+    boxTexture = createAndSetupTexture(true);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+    floorTexture = createAndSetupTexture(true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image1);
 
     gl.useProgram(programLight);
-    bindAttribLocation(posBuff, lightPositionLocation);
+    bindAttribLocation(boxBuff, lightPositionLocation);
 
     // webglLessonsUI.setupSlider("#fudgeFactor", {value: radToDeg(fieldOfViewRadians), slide: updateField, max: 180, step: 0.01, precision: 2 });
     webglLessonsUI.setupSlider("#shininess", {value: shininess, slide: updateShininess, max: 100, min: 1, step: 0.5, precision: 2 });
     webglLessonsUI.setupSlider("#shiniFactor", {value: shiniFactor, slide: updateShiniFactor, max: 1, min: 0, step: 0.01, precision: 2 });
-    webglLessonsUI.setupSlider("#x", {value: translation[0], slide: updatePosition(0), max: 10, min: -10, step: 0.01, precision: 2 });
-    webglLessonsUI.setupSlider("#y", {value: translation[1], slide: updatePosition(1), max: 10, min: -10, step: 0.01, precision: 2});
-    webglLessonsUI.setupSlider("#z", {value: translation[2], slide: updatePosition(2), max: 0, min: -20, step: 0.01, precision: 2});
-    webglLessonsUI.setupSlider("#angleX", {value: radToDeg(rotation[0]), slide: updateRotation(0), max: 360, min: -360});
-    webglLessonsUI.setupSlider("#angleY", {value: radToDeg(rotation[1]), slide: updateRotation(1), max: 360, min: -360});
-    webglLessonsUI.setupSlider("#angleZ", {value: radToDeg(rotation[2]), slide: updateRotation(2), max: 360, min: -360});
+    webglLessonsUI.setupSlider("#viewX", {value: translation[0], slide: updateViewPosition(0), max: 10, min: -10, step: 0.01, precision: 2 });
+    webglLessonsUI.setupSlider("#viewY", {value: translation[1], slide: updateViewPosition(1), max: 10, min: -10, step: 0.01, precision: 2});
+    webglLessonsUI.setupSlider("#viewZ", {value: translation[2], slide: updateViewPosition(2), max: 10, min: -10, step: 0.01, precision: 2});
+    webglLessonsUI.setupSlider("#lightDirectionX", {value: lightDirection[0], slide: updateLightDir(0), max: 1, min: -1, step: 0.01, precision: 2});
+    webglLessonsUI.setupSlider("#lightDirectionY", {value: lightDirection[1], slide: updateLightDir(1), max: 1, min: -1, step: 0.01, precision: 2});
+    webglLessonsUI.setupSlider("#lightDirectionZ", {value: lightDirection[2], slide: updateLightDir(2), max: 1, min: -1, step: 0.01, precision: 2});
+    webglLessonsUI.setupSlider("#lightNAngle", {value: lightAngleNear, slide: updateLightAngleN, max: 1, min: 0.5, step: 0.01, precision: 2 });
+    webglLessonsUI.setupSlider("#lightFAngle", {value: lightAngleFar, slide: updateLightAngleF, max: 1, min: 0, step: 0.01, precision: 2 });
     webglLessonsUI.setupSlider("#lightX", {value: lightPos[0], slide: updateLight(0), min: -5, max: 5, step: 0.01, precision: 2});
     webglLessonsUI.setupSlider("#lightY", {value: lightPos[1], slide: updateLight(1), min: -5, max: 5, step: 0.01, precision: 2});
     webglLessonsUI.setupSlider("#lightZ", {value: lightPos[2], slide: updateLight(2), min: -5, max: 5, step: 0.01, precision: 2});
@@ -199,6 +244,23 @@ function setBuffData() {
     return positionBuffer;
 }
 
+function setFloorData() {
+    let positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+    let positions = [
+        -0.5, 0, -0.5, 0, 1, 0, 0, 1,
+        -0.5, 0,  0.5, 0, 1, 0, 0, 0,
+        0.5,  0, -0.5, 0, 1, 0, 1, 1,
+
+        -0.5, 0,  0.5, 0, 1, 0, 0, 0,
+        0.5,  0,  0.5, 0, 1, 0, 1, 0,
+        0.5,  0, -0.5, 0, 1, 0, 1, 1,
+    ];
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+    return positionBuffer;
+}
+
 function setElementsData() {
     let elementBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elementBuffer);
@@ -221,7 +283,7 @@ function setElementsData() {
     return elementBuffer;
 }
 
-function bindAttribLocation(buff, attrLocation, normalLocation,texLocation) {
+function bindAttribLocation(buff, attrLocation, normalLocation, texLocation) {
     gl.bindBuffer(gl.ARRAY_BUFFER, buff);
     gl.enableVertexAttribArray(attrLocation);
     let size = 3;          
@@ -246,15 +308,21 @@ function bindAttribLocation(buff, attrLocation, normalLocation,texLocation) {
     }
 }
 
-function createAndSetupTexture() {
+function createAndSetupTexture(isClampToEdge) {
     let texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
  
     // 设置材质，这样我们可以对任意大小的图像进行像素操作
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    if (isClampToEdge) {
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    } else {
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.MIRRORED_REPEAT);  //图片必须为2的幂次方
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.MIRRORED_REPEAT);
+    }
+    
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
  
     return texture;
 }
@@ -268,12 +336,20 @@ function draw(dt) {
     gl.uniform1f(shininessLocation, shininess);
     gl.uniform1f(shiniFactorLocation, shiniFactor);
     gl.uniform3fv(lightPosLocation, lightPos);
+    gl.uniform1f(lightAngleFarLocation, lightAngleFar);
+    gl.uniform1f(lightAngleNearLocation, lightAngleNear);
+    bindAttribLocation(boxBuff, positionLocation, normalLocation, texCoordLocation);
+    gl.bindTexture(gl.TEXTURE_2D, boxTexture);
+
+    let direct = subtractVectors([0, 0, 0], lightDirection);
+    direct = normalize(direct);
+    gl.uniform3fv(reverseLightDirLocation, direct);
     
     let aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
     let zNear = 1;
     let zFar = 10;
     let matrix = m4.perspective(fieldOfViewRadians, aspect, zNear, zFar);
-    let lookAtMatrix = m4.lookAt([0, 0, 5], [0, 0, -1], [0, 1, 0]);
+    let lookAtMatrix = m4.lookAt(viewPos, [0, 0, 0], [0, 1, 0]);
     lookAtMatrix = m4.inverse(lookAtMatrix);
     matrix = m4.multiply(matrix, lookAtMatrix);
 
@@ -302,11 +378,28 @@ function draw(dt) {
     let count = 36;
     gl.drawElements(primitiveType, count, gl.UNSIGNED_BYTE, beginPos);
 
+    bindAttribLocation(floorBuff, positionLocation, normalLocation, texCoordLocation);
+    gl.bindTexture(gl.TEXTURE_2D, floorTexture);
+    moduleMatrix = m4.identity();
+    moduleMatrix = m4.translate(moduleMatrix, 0, -1, 0);
+    moduleMatrix = m4.scale(moduleMatrix, 8, 1, 6);
+    
+    gl.uniformMatrix4fv(moduleMatrixLocation, false, moduleMatrix);
+    moduleInvT = m4.copy(moduleMatrix);
+    moduleInvT = m4.inverse(moduleInvT);
+    moduleInvT = m4.transpose(moduleInvT);
+    gl.uniformMatrix4fv(moduleInvTMatrixLocation, false, moduleInvT);
+
+    lastMatrix = m4.multiply(matrix, moduleMatrix);
+    gl.uniformMatrix4fv(matrixLocation, false, lastMatrix);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
     gl.useProgram(programLight);
 
     moduleMatrix = m4.identity();
     moduleMatrix = m4.translate(moduleMatrix, lightPos[0], lightPos[1], lightPos[2]);
-    moduleMatrix = m4.scale(moduleMatrix, 0.2, 0.2, 0.2);
+    moduleMatrix = m4.scale(moduleMatrix, 0.1, 0.1, 0.1);
     moduleMatrix = m4.translate(moduleMatrix, -0.5, -0.5, -0.5);
     lastMatrix = m4.multiply(matrix, moduleMatrix);
     gl.uniformMatrix4fv(lightMatrixLocation, false, lastMatrix);
