@@ -164,9 +164,9 @@ function render(image, image1) {
 
     let elementData = setElementsData();
 
-    boxTexture = createAndSetupTexture(true);
+    boxTexture = createAndSetupTexture(false);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
-    floorTexture = createAndSetupTexture(true);
+    floorTexture = createAndSetupTexture(false);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image1);
 
     gl.useProgram(programLight);
@@ -219,7 +219,7 @@ function setBuffData() {
         //上面
         0, 1, 1, 0, 1, 0, 0, 0,
         1, 1, 1, 0, 1, 0, 1, 0,
-        0, 1, 0, 0, 1, 0, 1, 0,
+        0, 1, 0, 0, 1, 0, 0, 1,
         1, 1, 0, 0, 1, 0, 1, 1,
 
         //下面
@@ -249,13 +249,13 @@ function setFloorData() {
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 
     let positions = [
-        -0.5, 0, -0.5, 0, 1, 0, 0, 1,
-        -0.5, 0,  0.5, 0, 1, 0, 0, 0,
-        0.5,  0, -0.5, 0, 1, 0, 1, 1,
+        0, 1, 1, 0, 1, 0, 0, 0,
+        1, 1, 0, 0, 1, 0, 1, 1,
+        0, 1, 0, 0, 1, 0, 0, 1,
 
-        -0.5, 0,  0.5, 0, 1, 0, 0, 0,
-        0.5,  0,  0.5, 0, 1, 0, 1, 0,
-        0.5,  0, -0.5, 0, 1, 0, 1, 1,
+        0, 1, 1, 0, 1, 0, 0, 0,
+        1, 1, 1, 0, 1, 0, 1, 0,
+        1, 1, 0, 0, 1, 0, 1, 1,
     ];
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
     return positionBuffer;
@@ -378,11 +378,12 @@ function draw(dt) {
     let count = 36;
     gl.drawElements(primitiveType, count, gl.UNSIGNED_BYTE, beginPos);
 
-    bindAttribLocation(floorBuff, positionLocation, normalLocation, texCoordLocation);
+    // bindAttribLocation(floorBuff, positionLocation, normalLocation, texCoordLocation);
     gl.bindTexture(gl.TEXTURE_2D, floorTexture);
     moduleMatrix = m4.identity();
     moduleMatrix = m4.translate(moduleMatrix, 0, -1, 0);
-    moduleMatrix = m4.scale(moduleMatrix, 8, 1, 6);
+    moduleMatrix = m4.scale(moduleMatrix, 10, 1, 10);
+    moduleMatrix = m4.translate(moduleMatrix, -0.5, -0.5, -0.5);
     
     gl.uniformMatrix4fv(moduleMatrixLocation, false, moduleMatrix);
     moduleInvT = m4.copy(moduleMatrix);
@@ -393,7 +394,8 @@ function draw(dt) {
     lastMatrix = m4.multiply(matrix, moduleMatrix);
     gl.uniformMatrix4fv(matrixLocation, false, lastMatrix);
 
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    // gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.drawElements(primitiveType, 6, gl.UNSIGNED_BYTE, 12);
 
     gl.useProgram(programLight);
 
