@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Nine FourView</title>
+    <link type="text/css" href="resources/common.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="description">
+    <canvas id="c"></canvas>
+    <div id="uiContainer">
+      <div id="ui">
+        <div id="shininess"></div>
+        <div id="shiniFactor"></div>
+        <div id="viewX"></div>
+        <div id="viewY"></div>
+        <div id="viewZ"></div>
+        <div id="lightDirectionX"></div>
+        <div id="lightDirectionY"></div>
+        <div id="lightDirectionZ"></div>
+        <div id="lightNAngle"></div>
+        <div id="lightFAngle"></div>
+        <div id="lightX"></div>
+        <div id="lightY"></div>
+        <div id="lightZ"></div>
+      </div>
+    </div>
+  </div>
+</body>
+<script  id="vertex-shader-2d" type="x-shader/x-vertex">
+
+  // an attribute will receive data from a buffer
+  attribute vec4 a_position;
+  attribute vec2 a_texCoord;
+  attribute vec3 a_normal;
+
+  uniform mat4 u_matrix;
+  uniform mat4 u_moduleInvTraMatrix;
+  uniform mat4 u_ModuleMatrix;
+
+  uniform vec3 u_lightPos;
+  uniform vec3 u_viewPos;
+
+  varying vec2 v_texCoord;
+  varying vec3 v_normal;
+  varying vec3 v_lightDirection;
+  varying vec3 v_viewDirection;
+
+  // all shaders have a main function
+  void main() {
+    gl_Position = u_matrix * a_position;
+    v_texCoord = a_texCoord;
+    v_normal = mat3(u_moduleInvTraMatrix) * a_normal;
+    vec3 worldPos = vec3(u_ModuleMatrix * a_position);
+    v_lightDirection = u_lightPos - worldPos;
+    v_viewDirection = u_viewPos - worldPos;
+  }
+</script>
+<script  id="fragment-shader-2d" type="x-shader/x-fragment">
+
+  // fragment shaders don't have a default precision so we need
+  // to pick one. mediump is a good default
+  precision mediump float;
+
+  
+  uniform vec3 u_amibient;
+  uniform vec3 u_lightColor;
+
+  uniform float u_lightAngleNear;
+  uniform float u_lightAngleFar;
+  uniform vec3 u_reverseLightDir;
+
+  uniform float u_shininess;
+  uniform float u_shiniFactor;
+  uniform sampler2D u_image;
+
+  varying vec3 v_lightDirection;
+  varying vec3 v_viewDirection;
+  varying vec3 v_normal;
+  varying vec3 v_worldPos;
+  varying vec2 v_texCoord;
+  
+
+  void main() {
+    vec4 color = texture2D(u_image, v_texCoord);
+
+    vec3 normal = normalize(v_normal);
+    vec3 lightDirection = normalize(v_lightDirection);
+
+    float lightShow = dot(u_reverseLightDir, lightDirection);
+    lightShow = smoothstep(u_lightAngleFar, u_lightAngleNear, lightShow);
+    
+    float dotV = max(dot(lightDirection, normal), 0.0);
+    vec3 diffuse = lightShow * u_lightColor * color.rgb * dotV;
+    
+    vec3 viewDirction = normalize(v_viewDirection);
+    vec3 halfVector = normalize(viewDirction + lightDirection);
+    float shininess = u_shiniFactor * pow(max(dot(halfVector, normal), 0.0), u_shininess);
+    vec3 shinie = lightShow * u_lightColor * shininess;
+
+    vec3 ambient = u_amibient * color.rgb;
+
+    gl_FragColor = vec4(diffuse + ambient + shinie, color.a);
+  }
+</script>
+
+<script  id="vertex-shader-2d-light" type="x-shader/x-vertex">
+
+  // an attribute will receive data from a buffer
+  attribute vec4 a_position;
+  attribute vec2 a_texCoord;
+
+  uniform mat4 u_matrix;
+
+  varying vec2 v_texCoord;
+  // all shaders have a main function
+  void main() {
+    v_texCoord = a_texCoord;
+    gl_Position = u_matrix * a_position;
+    
+  }
+</script>
+
+<script  id="fragment-shader-2d-light" type="x-shader/x-fragment">
+
+  // fragment shaders don't have a default precision so we need
+  // to pick one. mediump is a good default
+  precision mediump float;
+  
+  uniform sampler2D u_image;
+  uniform int u_isView;
+
+  varying vec2 v_texCoord;
+  void main() {
+    if (u_isView == 1) {
+      gl_FragColor = texture2D(u_image, v_texCoord);
+    }else{
+      gl_FragColor = vec4(1.0);
+    }
+  }
+</script>
+<script src="resources/webgl-utils.js"></script>
+<script src="resources/webgl-3d-math.js"></script>
+<script src="resources/m4.js"></script>
+<script src="resources/webgl-lessons-ui.js"></script>
+<script src="resources/nine_four_view.js"></script>
+</html>
