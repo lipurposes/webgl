@@ -334,6 +334,7 @@ function draw(armAngle) {
     viewPos = [0, 10, -10];
     drawPeople(armAngle, OFFSCREEN_WIDTH, OFFSCREEN_HEIGHT, fbos[3]);
 
+    
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
